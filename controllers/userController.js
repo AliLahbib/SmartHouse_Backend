@@ -42,6 +42,7 @@ exports.editUser = async (req, res, next) => {
 
 exports.signIn = async (req, res, next) => {
     try {
+        console.log("debug login!!!!!!");
         const email = req.body.email;
         const password = req.body.password;
         const result = await userServices.signIn(email, password);
@@ -53,3 +54,17 @@ exports.signIn = async (req, res, next) => {
     }
 }
 
+
+exports.addFriend = async (req, res, next) => {
+    try {
+        const id = req.params.id;
+        const friendId = req.body.friendId;
+        console.log({ id, friendId });
+        const result = await userServices.addFriend(id, friendId);
+        res.status(201).json(result);
+    } catch (error) {
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+}
