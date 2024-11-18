@@ -5,15 +5,20 @@ exports.initMongoDb = () =>
         try {
             mongoose.set('strictQuery', true);
             mongoose
-                .connect('mongodb://127.0.0.1:27017/natra', {
-                    autoCreate: true,
-                    autoIndex: true,
-                })
+                .connect(
+                    'mongodb+srv://alilahbib_dev:Azerty123mongodb@cluster0.gwcyu.mongodb.net/Natra?retryWrites=true&w=majority&appName=Cluster0',
+                    {
+                        useNewUrlParser: true,
+                        useUnifiedTopology: true,
+                        autoCreate: true,
+                        autoIndex: true,
+                    }
+                )
                 .then(() => {
                     console.log('MongoDB Connected ✅');
                     resolve(mongoose.connection);
                 })
-                .catch((err) => console.log(err));
+                .catch((err) => console.log('MongoDB Connection Error ❌:', err));
         } catch (error) {
             reject(error);
         }
