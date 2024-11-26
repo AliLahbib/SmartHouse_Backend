@@ -6,7 +6,7 @@ exports.initMongoDb = async () => {
 
         // Configuration et connexion à MongoDB
         const connection = await mongoose.connect(
-            'mongodb+srv://aliDevMain:Azerty123mongodb@cluster0.ptt2b.mongodb.net/Natra?retryWrites=true&w=majority&appName=Cluster0',
+            'mongodb+srv://aliDevMain:Azerty123mongodb@cluster0.ptt2b.mongodb.net/SmartHouse?retryWrites=true&w=majority&appName=Cluster0',
             {
                 autoCreate: true,  // Automatically create collections
                 autoIndex: true,   // Automatically build indexes
