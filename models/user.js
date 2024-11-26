@@ -1,21 +1,21 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 
-const userSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema(
+  {
     username: String,
     email: String,
-    password: {
-        type: String,
-        set: (value) => {
-            return bcrypt.hashSync(value, 12)
-        }
-    },
-    fullname: String,
+    password: String,
     phone: String,
-    avatar: String,
-    friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'users' }]
-}, { timestamps: true });
+    birthday: Date,
+    role: String,
+    createdAt: Date,
+    updatedAt: Date,
+    pieces: [{ type: mongoose.Schema.Types.ObjectId, ref: "pieces" }],
+  },
+  { timestamps: true }
+);
 
-const User = mongoose.model('users', userSchema);
+const User = mongoose.model("users", userSchema);
 
 exports.User = User;

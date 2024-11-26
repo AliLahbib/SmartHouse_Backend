@@ -13,6 +13,19 @@ exports.getUsers = async (req, res, next) => {
     }
 }
 
+exports.getUser = async (req, res, next) => {
+    try {
+        const id = req.params.id;
+        const result = await userServices.getUser(id);
+        res.status(201).json(result);
+    } catch (error) {
+        res.status(500).json({
+            message: error.message,
+            details: 'Internal Server Error !',
+        });
+    }
+}
+
 exports.addUser = async (req, res, next) => {
     try {
         const userData = req.body;
@@ -42,9 +55,10 @@ exports.editUser = async (req, res, next) => {
 
 exports.signIn = async (req, res, next) => {
     try {
-        console.log("debug login!!!!!!");
+        
         const email = req.body.email;
         const password = req.body.password;
+        console.log('debug ' + email + '/' + password);
         const result = await userServices.signIn(email, password);
         res.status(201).json(result);
     } catch (error) {
@@ -53,18 +67,34 @@ exports.signIn = async (req, res, next) => {
         });
     }
 }
+exports.reinitilizePassword= async (req,res,next)=>{
+    const email=req.body.email;
+    
+    
+    const newPass=req.body.newPass
+    console.log("debug "+email+"/"+newPass);
+    try{
+    const result=await userServices.reinitilizePassword(email,newPass);
+    res.status(201).json(result);
+    }catch(error){
+        res.status(500).json({
+            message: error.message,
+        });
+    }
+    
+}
 
 
-exports.addFriend = async (req, res, next) => {
+exports.deleteUser = async (req, res, next) => {
     try {
+        console.log("debug delete user from controller");
         const id = req.params.id;
-        const friendId = req.body.friendId;
-        console.log({ id, friendId });
-        const result = await userServices.addFriend(id, friendId);
+        const result = await userServices.deleteUser(id);
         res.status(201).json(result);
     } catch (error) {
         res.status(500).json({
             message: error.message,
+            details: 'Internal Server Error !',
         });
     }
 }
