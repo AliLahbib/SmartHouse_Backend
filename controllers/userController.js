@@ -98,3 +98,32 @@ exports.deleteUser = async (req, res, next) => {
         });
     }
 }
+
+
+exports.addPieceToUser = async (req, res, next) => {
+    try {
+        const idPiece = req.body.idPiece;
+        const idUser = req.params.id;
+        const result = await userServices.addPieceToUser(idUser, idPiece);
+        res.status(201).json(result);
+    } catch (error) {
+        res.status(500).json({
+            message: error.message,
+            details: 'Internal Server Error !',
+        });
+    }
+}
+
+
+exports.getUsersByPiece=async(req,res,next)=>{
+    try{
+        const idPiece=req.params.id;
+        const result=await userServices.getUsersByPiece(idPiece);
+        res.status(201).json(result);
+    }catch(error){
+        res.status(500).json({
+            message: error.message,
+            details: "Internal Server Error !",
+        });
+    }
+}
