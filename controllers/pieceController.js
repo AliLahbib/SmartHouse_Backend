@@ -16,9 +16,7 @@ exports.getPieces = async (req, res, next) => {
 exports.getPieceById = async (req, res, next) => {
   try {
     const id = req.params.id;
-    const result = await pieceServices.getPieceById(id);
-    if(!result.userId)
-        console.log("debug piece from constroller : " + result.userId);
+    const result = await pieceServices.getPieceById(id);   
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({
@@ -98,3 +96,17 @@ exports.addPieceToUser = async (req, res, next) => {
     });
   }
 };
+
+
+exports.getPiecesByUser=async(req,res,next)=>{
+    try{
+        const idUser=req.params.id;
+        const result=await pieceServices.getPiecesByUser(idUser);
+        res.status(201).json(result);
+    }catch(error){
+        res.status(500).json({
+            message: error.message,
+            details: "Internal Server Error !",
+        });
+    }
+}

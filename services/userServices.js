@@ -1,10 +1,17 @@
 const { User } = require("../models/user");
 const {Piece} = require('../models/piece');
+const pieceService = require('./pieceServices');
 const bcrypt = require("bcryptjs");
 
 exports.getUsers = async () => {
   const users = await User.find({}, { password: 0 });
-  return users;
+  const usersWithPieces = await Promise.all(
+    users.map(async (user) => {
+      const listPieces = await Piece.find({ _id: { $in: user.pieces } });
+      return { ...user.toObject(), listPieces }; // Convertir en objet JS et ajouter listPieces
+    })
+  );
+  return usersWithPieces;
 };
 
 
@@ -13,19 +20,19 @@ exports.getUser = async (id) => {
   if (!user) {
     throw new Error("User not found");
   }
-  return user;
+  let listPieces =  await Piece.find({ _id: { $in: user.pieces } });
+  return { ...user.toObject(), listPieces };
 }
 exports.addNewUser = async (userData) => {
   const hashedPassword = bcrypt.hashSync(userData.password, 12);
   const newUser = await User.create({
     ...userData,
-    userId:null,
     password: hashedPassword,
     createdAt: new Date(),
     updatedAt: new Date(),
     pieces: [],
   });
-  return newUser;
+  return { ...newUser.toObject(), listPieces: [] }; // Convertir en objet JS et ajouter listPieces newUser;
 };
 exports.editUser = async (id, userData) => {
   const user = await User.findByIdAndUpdate(
@@ -36,7 +43,8 @@ exports.editUser = async (id, userData) => {
   if (!user) {
     throw new Error("User not found");
   }
-  return user;
+  let listPieces =  await Piece.find({ _id: { $in: user.pieces } });
+  return { ...user.toObject(), listPieces };
 };
 exports.signIn = async (email, password) => {
   const user = await User.findOne({ email });
@@ -46,21 +54,32 @@ exports.signIn = async (email, password) => {
   if (!bcryptjs.compareSync(password, user.password)) {
     throw new Error("Wrong password");
   }
-  return user;
+  let listPieces =  await Piece.find({ _id: { $in: user.pieces } });
+  return { ...user.toObject(), listPieces };
 };
 
-exports.addPiece = async (userId, pieceId) => {
+exports.addPieceToUser = async (userId, pieceId) => {
   const user = await User.findById(userId);
   if (!user) {
-    if (user.pieces.includes(pieceId)) {
-      throw new Error("Piece already added to user");
-    }
-    user.pieces.push(pieceId);
-    await user.save();
-    return user;
-  } else {
     throw new Error("User not found");
   }
+  const piece = await Piece.findById(pieceId);
+  if (!piece) {
+    throw new Error("Piece not found");
+  }
+  console.log("debug:  user and piece found");
+  if (user.pieces.includes(pieceId)&& piece.users.includes(userId)) {
+    throw new Error("Piece already added to user");
+  }
+  piece.users.push(userId);
+  user.pieces.push(pieceId);
+  await piece.save();
+  user = await user.save();
+
+  console.log("debug:  user and piece saved");
+  
+  let listPieces = await Piece.find({ _id: { $in: user.pieces } });
+  return { ...user.toObject(), listPieces };
 };
 
 exports.reinitilizePassword = async (email, newPass) => {
@@ -71,7 +90,8 @@ exports.reinitilizePassword = async (email, newPass) => {
   const hashedPassword = bcrypt.hashSync(newPass, 12);
   user.password = hashedPassword; // Mise à jour sans double-hachage
   await user.save();
-  return user;
+  let listPieces = await Piece.find({ _id: { $in: user.pieces } });
+  return { ...user.toObject(), listPieces };
 };
 
 exports.deleteUser = async (id) => {
@@ -80,11 +100,22 @@ exports.deleteUser = async (id) => {
   if (!user) {
     throw new Error("User not found");
   }
-  // Mettre à jour les pièces associées pour les rendre libres
+
   await Piece.updateMany(
-    { _id: { $in: user.pieces } }, // Filtrer les pièces associées à cet utilisateur
-    { $unset: { userId: null } } // Définir userId à null
+    { _id: { $in: user.pieces } },
+    { $pull: { users: id } } 
   );
     await User.findByIdAndDelete(id);
   return user;
 };
+
+
+
+exports.getUsersByPiece=async (pieceId)=>{
+    const piece = await Piece.findById(pieceId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    const users = await User.find({ _id: { $in: piece.users } });
+    return users;
+}

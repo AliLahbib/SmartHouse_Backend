@@ -6,7 +6,7 @@ const pieceSchema = new mongoose.Schema(
     type:String,
     floor: String,
     devices: [{ type: mongoose.Schema.Types.ObjectId, ref: "devices" }],
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "users" },
+    users: [{ type: mongoose.Schema.Types.ObjectId, ref: "users" }],
     createdAt: Date,
     updatedAt: Date,
   },
