@@ -5,23 +5,24 @@ const { User } = require("../models/user");
 
 exports.getPieces = async () => {
   
-  const pieces = await Piece.find({});
-  const piecesWithUsers = await Promise.all(
-    pieces.map(async (piece) => {
-      const listUsers = await User.find({ _id: { $in: piece.users } });
-      return { ...piece.toObject(), "listUsers": listUsers  }; // Convertir en objet JS et ajouter listPieces
-    })
-  )
+  const pieces = await Piece.find({}).populate(["users","devices"]);
+  // const piecesWithUsers = await Promise.all(
+  //   pieces.map(async (piece) => {
+  //     const listUsers = await User.find({ _id: { $in: piece.users } });
+  //     return { ...piece.toObject(), "listUsers": listUsers  }; // Convertir en objet JS et ajouter listPieces
+  //   })
+  // )
   
-  return piecesWithUsers;
+  return pieces;
 };
 exports.getPieceById= async (id)=>{
-  const piece = await Piece.findById(id);
-  if (!piece) {
-    throw new Error("Piece not found");
-  }
-  let listUsers = await User.find({ _id: { $in: piece.users } });
-  return { ...piece.toObject(), "listUsers":listUsers };
+  const piece = await Piece.findById(id).populate(["users","devices"]);
+  // if (!piece) {
+  //   throw new Error("Piece not found");
+  // }
+  // let listUsers = await User.find({ _id: { $in: piece.users } });
+  // return { ...piece.toObject(), "listUsers":listUsers };
+  return piece;
 }
 exports.addNewPiece = async (userData) => {
   console.log("debug add Piece from piece services");
@@ -32,7 +33,8 @@ exports.addNewPiece = async (userData) => {
     devices: [],
     users: [],
   });
-  return { ...piece.toObject(), "listUsers":[] };
+  return piece;
+  // return { ...piece.toObject(), "listUsers":[] };
 };
 exports.deletePiece = async (id) => {
   const piece = await Piece.findByIdAndDelete(id);
@@ -43,6 +45,10 @@ exports.deletePiece = async (id) => {
     { _id: { $in: piece.users } },
     { $pull: { pieces: id } }
   )
+  await Device.updateMany(
+    { _id: { $in: piece.devices } },
+    {"room":null}
+  )
   Piece.findByIdAndDelete(id);
   return piece;
 };
@@ -51,12 +57,12 @@ exports.updatePiece = async (id, pieceData) => {
     id,
     { ...pieceData, updatedAt: new Date() },
     { new: true }
-  );
+  ).populate(["users","devices"]);
   if (!piece) {
     throw new Error("Piece not found");
   }
-  let listUsers = await User.find({ _id: { $in: piece.users } });
-  return { ...piece.toObject(), "listUsers":listUsers };
+  
+  return piece;
 };
 
 exports.addDeviceToPiece = async (pieceId, deviceId) => {

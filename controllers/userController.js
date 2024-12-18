@@ -41,6 +41,7 @@ exports.addUser = async (req, res, next) => {
 
 exports.editUser = async (req, res, next) => {
     try {
+        console.log("debug edit user from controller");
         const id = req.params.id;
         const userData = req.body;
         const result = await userServices.editUser(id, userData);

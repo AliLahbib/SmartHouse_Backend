@@ -2,11 +2,11 @@ const Device  = require("../models/device");
 const { Piece } = require("../models/piece");
 
 exports.getDevices = async () => {
-  const devices = await Device.find();
+  const devices = await Device.find().populate("room");
   return devices;
 };
 exports.getDeviceById = async (id) => {
-  const device = await Device.findById(id);
+  const device = await Device.findById(id).populate("room");
   if (!device) {
     throw new Error("Device not found");
   }
@@ -14,101 +14,121 @@ exports.getDeviceById = async (id) => {
 };
 
 exports.updateDevice = async (id, deviceData) => {
-  const device = await Device.findByIdAndUpdate(
-    id,
-    { ...deviceData, updatedAt: new Date() },
-    { new: true }
-  );
+  const device = await Device.findById(id).populate("room");
+
   if (!device) {
     throw new Error("Device not found");
   }
+
+  const previousRoomId = device.room?._id?.toString();
+  const newRoomId = deviceData.room;
+
+  // Mettre à jour le dispositif
+  device.name = deviceData.name;
+  device.type = deviceData.type;
+  device.specificParams = deviceData.specificParams;
+  device.room = newRoomId || null; // Gérer la pièce
+  device.updatedAt = new Date();
+
+  await device.save();
+
+  // Gérer les pièces associées
+  if (previousRoomId && previousRoomId !== newRoomId) {
+    await exports.removeDeviceFromPiece(id, previousRoomId);
+  }
+
+  if (newRoomId && previousRoomId !== newRoomId) {
+    await exports.addDeviceToPiece(id, newRoomId);
+  }
+
   return device;
 };
 
 exports.addDevice=async (deviceData) => {
   const device = await Device.create({
     ...deviceData,
+    room:null,
+    status:"off",
+    lastConnected:null, 
+    consumption:0,
     createdAt: new Date(),
     updatedAt: new Date(),
   });
   return device;
 };
 
-// exports.getPieces = async () => {
-//   console.log("debug route request from services");
-//   const pieces = await Piece.find({});
-//   console.log("debug pieces from services : " + pieces);
-//   return pieces;
-// };
-// exports.getPieceById= async (id)=>{
-//   const piece = await Piece.findById(id);
-//   if (!piece) {
-//     throw new Error("Piece not found");
-//   }
-//   return piece;
-// }
-// exports.addNewPiece = async (userData) => {
-//   console.log("debug add Piece from piece services");
-//   const piece = await Piece.create({
-//     ...userData,
-//     createdAt: new Date(),
-//     updatedAt: new Date(),
-//     devices: [],
-//     userId: null,
-//   });
-//   return piece;
-// };
-// exports.deletePiece = async (id) => {
-//   const piece = await Piece.findByIdAndDelete(id);
-//   if (!piece) {
-//     throw new Error("Piece not found");
-//   }
-//   const user = await User.findById(piece.userId);
-//   if (user) {
-//     user.pieces.pull(id);
-//     await user.save();
-//   }
-//   Piece.findByIdAndDelete(id);
-//   return piece;
-// };
-// exports.updatePiece = async (id, pieceData) => {
-//   const piece = await Piece.findByIdAndUpdate(
-//     id,
-//     { ...pieceData, updatedAt: new Date() },
-//     { new: true }
-//   );
-//   if (!piece) {
-//     throw new Error("Piece not found");
-//   }
-//   return piece;
-// };
+exports.turnOnDevice = async (id) => {
+  const device = await Device.findByIdAndUpdate(id, {status: "on", updatedAt: new Date(),lastConnected: new Date()}).populate("room");
+  if (!device) {
+    throw new Error("Device not found");
+  }
+  return device;
+}
 
-// exports.addDeviceToPiece = async (pieceId, deviceId) => {
-//   const piece = await Piece.findById(pieceId);
-//   piece.devices.push(deviceId);
-//   await piece.save();
-//   return piece;
-// };
+exports.turnOffDevice = async (id) => {
+  console.log("debug from services turn off device ");
+  const device= await Device.findById(id).populate("room");
+  console.log("debug from services turn off device---- ",device);
+  if(!device){
+    console.log("device not found");
+    throw new Error("Device not found");
+  }
+  console.log("debug from services turn off device +++++",device);
+  devicee=await turnOffProcess(device);
+  await devicee.save();
+  return devicee;
+}
 
-// exports.addPieceToUser = async (userId, pieceId) => {
-//   console.log("debug add Piece to user from piece services");
-//   const user = await User.findById(userId);
-//   console.log("debug user from piece services : " + user);
-//   if (!user) {
-//     throw new Error("User not found");
-//   }
-//   const piece = await Piece.findById(pieceId);
-//   if (!piece) {
-//     throw new Error("Piece not found");
-//   }
+turnOffProcess=function(device){
+  console.log("start process",device);
+  device.status="off";
+  device.updatedAt=new Date(); 
+  lastConnected=device.lastConnected;
+  currentTime=new Date();
+  consumption=device.consumption;
+  device.consumption=consumption+((currentTime-lastConnected)/1000)*device.specificParams.powerConsumption;
+  console.log("finish process",device);
+  return device;
+}
 
-//     if(user.pieces.includes(pieceId)&& piece.userId==userId){
-//         throw new Error('Piece already added to user');
-//     }
-//     user.pieces.push(pieceId);
-//     piece.userId = userId;
-//     await piece.save();
-//     await user.save();
-//     return piece;
 
-// };
+exports.deleteDevice = async (id) => {
+  const device = await Device.findByIdAndDelete(id);
+  Piece.updateMany(
+    { _id: { $in: device.pieces } },
+    { $pull: { devices: id } }
+  )
+  if (!device) {
+    throw new Error("Device not found");
+  }
+  return device;
+};
+
+exports.addDeviceToPiece = async (deviceId, pieceId) => {
+  if (!pieceId) return;
+
+  const piece = await Piece.findById(pieceId);
+  if (!piece) {
+    throw new Error("Piece not found");
+  }
+
+  // Ajouter le dispositif à la liste
+  piece.devices = piece.devices || [];
+  if (!piece.devices.includes(deviceId)) {
+    piece.devices.push(deviceId);
+    await piece.save();
+  }
+};
+
+exports.removeDeviceFromPiece = async (deviceId, pieceId) => {
+  if (!pieceId) return;
+
+  const piece = await Piece.findById(pieceId);
+  if (!piece) {
+    throw new Error("Piece not found");
+  }
+
+  // Retirer le dispositif
+  piece.devices = piece.devices.filter((id) => id.toString() !== deviceId.toString());
+  await piece.save();
+};

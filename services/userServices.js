@@ -4,24 +4,18 @@ const pieceService = require('./pieceServices');
 const bcrypt = require("bcryptjs");
 
 exports.getUsers = async () => {
-  const users = await User.find({}, { password: 0 });
-  const usersWithPieces = await Promise.all(
-    users.map(async (user) => {
-      const listPieces = await Piece.find({ _id: { $in: user.pieces } });
-      return { ...user.toObject(), listPieces }; // Convertir en objet JS et ajouter listPieces
-    })
-  );
-  return usersWithPieces;
+  const users = await User.find({}, { password: 0 }).populate("pieces");
+  
+  return users;
 };
 
 
 exports.getUser = async (id) => {
-  const user = await User.findById(id);
+  const user = await User.findById(id).populate("pieces");
   if (!user) {
     throw new Error("User not found");
   }
-  let listPieces =  await Piece.find({ _id: { $in: user.pieces } });
-  return { ...user.toObject(), listPieces };
+  return user;
 }
 exports.addNewUser = async (userData) => {
   const hashedPassword = bcrypt.hashSync(userData.password, 12);
@@ -30,40 +24,104 @@ exports.addNewUser = async (userData) => {
     password: hashedPassword,
     createdAt: new Date(),
     updatedAt: new Date(),
-    pieces: [],
+    
   });
-  return { ...newUser.toObject(), listPieces: [] }; // Convertir en objet JS et ajouter listPieces newUser;
+
+  if (userData.pieces && userData.pieces.length > 0) {
+    await Piece.updateMany(
+      { _id: { $in: userData.pieces } },
+      { $addToSet: { users: newUser._id } },      
+    );
+  }
+  return newUser; // Convertir en objet JS et ajouter listPieces newUser;
 };
 exports.editUser = async (id, userData) => {
+  delete userData.password;
+  
+
+  // 1. Récupérer l'utilisateur actuel pour obtenir ses anciennes pièces
+  const existingUser = await User.findById(id).populate("pieces");
+
+  if (!existingUser) {
+    throw new Error("User not found");
+  }
+
+  const oldPieces = existingUser.pieces.map(piece => piece._id.toString()); // Anciennes pièces
+  const newPieces = userData.pieces || []; // Nouvelles pièces
+
+  console.log("Anciennes pièces : ", oldPieces);
+  console.log("Nouvelles pièces : ", newPieces);
+
+  // 2. Mettre à jour les informations de l'utilisateur
   const user = await User.findByIdAndUpdate(
     id,
     { ...userData, updatedAt: new Date() },
     { new: true }
   );
-  if (!user) {
-    throw new Error("User not found");
+
+  // 3. Retirer l'utilisateur des anciennes pièces non sélectionnées
+  const piecesToRemove = oldPieces.filter(pieceId => !newPieces.includes(pieceId));
+  if (piecesToRemove.length > 0) {
+    console.log("Retirer des pièces : ", piecesToRemove);
+    await Piece.updateMany(
+      { _id: { $in: piecesToRemove } },
+      { $pull: { users: id } } // Retirer l'utilisateur
+    );
   }
-  let listPieces =  await Piece.find({ _id: { $in: user.pieces } });
-  return { ...user.toObject(), listPieces };
+
+  // 4. Ajouter l'utilisateur aux nouvelles pièces sélectionnées
+  const piecesToAdd = newPieces.filter(pieceId => !oldPieces.includes(pieceId));
+  if (piecesToAdd.length > 0) {
+    console.log("Ajouter aux pièces : ", piecesToAdd);
+    await Piece.updateMany(
+      { _id: { $in: piecesToAdd } },
+      { $addToSet: { users: id } } // Ajouter l'utilisateur
+    );
+  }
+
+  return user;
+
+
+
+  // try {
+  //   const userId = req.params.id;
+  //   const { password, ...otherData } = userData; // Extraire le mot de passe et autres champs
+
+  //   const updateData = { ...otherData };
+
+  //   // Si le mot de passe est fourni et non vide, on le hache et l'ajoute aux données
+  //   if (password) {
+  //     const salt = await bcrypt.genSalt(10);
+  //     const hashedPassword = await bcrypt.hash(password, salt);
+  //     updateData.password = hashedPassword;
+  //   }
+
+  //   // Mise à jour de l'utilisateur
+  //   const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true });
+
+  //   res.json(updatedUser);
+  // } catch (error) {
+  //   console.error(error);
+  //   res.status(500).send("Erreur lors de la mise à jour de l'utilisateur");
+  // }
 };
 exports.signIn = async (email, password) => {
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).populate("pieces");
   if (!user) {
     throw new Error("User not found");
   }
   if (!bcryptjs.compareSync(password, user.password)) {
     throw new Error("Wrong password");
   }
-  let listPieces =  await Piece.find({ _id: { $in: user.pieces } });
-  return { ...user.toObject(), listPieces };
+  return user;
 };
 
 exports.addPieceToUser = async (userId, pieceId) => {
-  const user = await User.findById(userId);
+  const user = await User.findById(userId).populate("pieces");
   if (!user) {
     throw new Error("User not found");
   }
-  const piece = await Piece.findById(pieceId);
+  const piece = await Piece.findById(pieceId).populate("users");
   if (!piece) {
     throw new Error("Piece not found");
   }
@@ -78,8 +136,7 @@ exports.addPieceToUser = async (userId, pieceId) => {
 
   console.log("debug:  user and piece saved");
   
-  let listPieces = await Piece.find({ _id: { $in: user.pieces } });
-  return { ...user.toObject(), listPieces };
+  return user;
 };
 
 exports.reinitilizePassword = async (email, newPass) => {
@@ -90,8 +147,7 @@ exports.reinitilizePassword = async (email, newPass) => {
   const hashedPassword = bcrypt.hashSync(newPass, 12);
   user.password = hashedPassword; // Mise à jour sans double-hachage
   await user.save();
-  let listPieces = await Piece.find({ _id: { $in: user.pieces } });
-  return { ...user.toObject(), listPieces };
+  return user;
 };
 
 exports.deleteUser = async (id) => {
