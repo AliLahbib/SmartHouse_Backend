@@ -44,13 +44,15 @@ exports.addPiece = async (req, res, next) => {
 
 exports.deletePiece = async (req, res, next) => {
   try {
+    
     const id = req.params.id;
+    console.log("debug from delete piece  "+id); 
     const result = await pieceServices.deletePiece(id);
     res.status(201).json(result);
   } catch (error) {
     res.status(500).json({
       message: error.message,
-      details: "Internal Server Error !",
+      details: "Internal Server Error  from delete!",
     });
   }
 };

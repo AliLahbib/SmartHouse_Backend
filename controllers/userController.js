@@ -41,9 +41,10 @@ exports.addUser = async (req, res, next) => {
 
 exports.editUser = async (req, res, next) => {
     try {
-        console.log("debug edit user from controller");
+        
         const id = req.params.id;
         const userData = req.body;
+        console.log("debug edit user "+id + " from controller ",userData);
         const result = await userServices.editUser(id, userData);
         res.status(201).json(result);
     } catch (error) {
@@ -54,35 +55,35 @@ exports.editUser = async (req, res, next) => {
     }
 }
 
-exports.signIn = async (req, res, next) => {
+// exports.signIn = async (req, res, next) => {
+//     try {
+
+//         const email = req.body.email;
+//         const password = req.body.password;
+//         console.log('debug ' + email + '/' + password);
+//         const result = await userServices.signIn(email, password);
+//         res.status(201).json(result);
+//     } catch (error) {
+//         res.status(500).json({
+//             message: error.message,
+//         });
+//     }
+// }
+exports.reinitilizePassword = async (req, res, next) => {
+    const email = req.body.email;
+
+
+    const newPass = req.body.newPass
+    console.log("debug " + email + "/" + newPass);
     try {
-        
-        const email = req.body.email;
-        const password = req.body.password;
-        console.log('debug ' + email + '/' + password);
-        const result = await userServices.signIn(email, password);
+        const result = await userServices.reinitilizePassword(email, newPass);
         res.status(201).json(result);
     } catch (error) {
         res.status(500).json({
             message: error.message,
         });
     }
-}
-exports.reinitilizePassword= async (req,res,next)=>{
-    const email=req.body.email;
-    
-    
-    const newPass=req.body.newPass
-    console.log("debug "+email+"/"+newPass);
-    try{
-    const result=await userServices.reinitilizePassword(email,newPass);
-    res.status(201).json(result);
-    }catch(error){
-        res.status(500).json({
-            message: error.message,
-        });
-    }
-    
+
 }
 
 
@@ -116,15 +117,36 @@ exports.addPieceToUser = async (req, res, next) => {
 }
 
 
-exports.getUsersByPiece=async(req,res,next)=>{
-    try{
-        const idPiece=req.params.id;
-        const result=await userServices.getUsersByPiece(idPiece);
+exports.getUsersByPiece = async (req, res, next) => {
+    try {
+        const idPiece = req.params.id;
+        const result = await userServices.getUsersByPiece(idPiece);
         res.status(201).json(result);
-    }catch(error){
+    } catch (error) {
         res.status(500).json({
             message: error.message,
             details: "Internal Server Error !",
         });
     }
 }
+
+
+exports.login = async (req, res) => {
+
+    const { email, password } = req.body;
+    try {
+
+        const result = await userServices.signIn(email, password);
+        res.status(200).json(result);
+
+
+
+    } catch (error) {
+        res.status(500).json({ message:error.message, error });
+    }
+};
+
+exports.logout = (req, res) => {
+    res.status(200).json({ message: "Déconnexion réussie" });
+  };
+  
