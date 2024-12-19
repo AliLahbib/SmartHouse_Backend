@@ -2,7 +2,7 @@ const { User } = require("../models/user");
 const {Piece} = require('../models/piece');
 const pieceService = require('./pieceServices');
 const bcrypt = require("bcryptjs");
-
+const jwt = require("jsonwebtoken");
 exports.getUsers = async () => {
   const users = await User.find({}, { password: 0 }).populate("pieces");
   
@@ -19,6 +19,8 @@ exports.getUser = async (id) => {
 }
 exports.addNewUser = async (userData) => {
   const hashedPassword = bcrypt.hashSync(userData.password, 12);
+  userData.pieces = userData.pieces || [];
+  console.log("debug user from user services : " + userData);
   const newUser = await User.create({
     ...userData,
     password: hashedPassword,
@@ -33,26 +35,29 @@ exports.addNewUser = async (userData) => {
       { $addToSet: { users: newUser._id } },      
     );
   }
-  return newUser; // Convertir en objet JS et ajouter listPieces newUser;
+  return newUser; 
 };
 exports.editUser = async (id, userData) => {
   delete userData.password;
   
 
-  // 1. Récupérer l'utilisateur actuel pour obtenir ses anciennes pièces
-  const existingUser = await User.findById(id).populate("pieces");
 
+  const existingUser = await User.findById(id).populate("pieces");
+  
   if (!existingUser) {
+    console.log("not found")
     throw new Error("User not found");
   }
+  
 
-  const oldPieces = existingUser.pieces.map(piece => piece._id.toString()); // Anciennes pièces
-  const newPieces = userData.pieces || []; // Nouvelles pièces
+  const oldPieces = existingUser.pieces.map(piece => piece._id.toString()); 
+  console.log("debug user from user services : " + existingUser);
+  const newPieces = userData.pieces || []; 
 
   console.log("Anciennes pièces : ", oldPieces);
   console.log("Nouvelles pièces : ", newPieces);
 
-  // 2. Mettre à jour les informations de l'utilisateur
+  
   const user = await User.findByIdAndUpdate(
     id,
     { ...userData, updatedAt: new Date() },
@@ -110,10 +115,15 @@ exports.signIn = async (email, password) => {
   if (!user) {
     throw new Error("User not found");
   }
-  if (!bcryptjs.compareSync(password, user.password)) {
+  if (!bcrypt.compareSync(password, user.password)) {
     throw new Error("Wrong password");
   }
-  return user;
+
+  const token = jwt.sign({ id: user._id, role: user.role }, "smartHouseKey", {
+    expiresIn: "1d",
+  });
+
+  return {user,token};
 };
 
 exports.addPieceToUser = async (userId, pieceId) => {
